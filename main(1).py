@@ -135,6 +135,11 @@ def two_dimensional_gaussian_filter(size, sigma):
     kernel = np.fromfunction(lambda x, y: (1/(2*np.pi*sigma**2)) * np.exp(-((x - (size-1)/2)**2 + (y - (size-1)/2)**2) / (2*sigma**2)), (size, size))
     return kernel / np.sum(kernel)
 
+def one_dimensional_derivative_gaussian_filter(size, sigma):
+    kernel = np.fromfunction(lambda x, y: -(np.sqrt(2)*x*np.exp(-(x**2)/(2)))/(2*np.sqrt(np.pi)), (size,1))
+    return kernel / np.sum(kernel)
+
+
 
 sigma = 1
 size = 6*sigma
@@ -164,4 +169,8 @@ V_gaussian = filter_images(V_gaussian, G, axis=2)
 show_animation(V_gaussian)
 
 
-#test
+V_x = filter_images(V, one_dimensional_derivative_gaussian_filter(6, 1), axis=0)
+show_animation(V_x)
+
+V_x = filter_images(V, one_dimensional_derivative_gaussian_filter(6, 1), axis=0)
+show_animation(V_x)
