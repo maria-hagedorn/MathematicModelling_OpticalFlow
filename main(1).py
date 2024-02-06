@@ -174,3 +174,11 @@ show_animation(V_x)
 
 V_x = filter_images(V, one_dimensional_derivative_gaussian_filter(6, 1), axis=0)
 show_animation(V_x)
+
+
+
+
+
+
+
+
