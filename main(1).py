@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from scipy.ndimage import correlate
-
+from tqdm import tqdm
 
 def load_images(directory):
     """We load the 64 images using the skimage.io.ImageCollection() function,
@@ -293,3 +293,122 @@ plt.tight_layout()
 plt.show()
 
 # -------------------------------------------------------------
+
+
+
+
+
+# --------------------------------------------------- PROBLEM 3.1
+
+
+# Cut out a piece of the first image in the collection
+
+pixel = [0, 50, 100]
+N = 10
+
+V_N_x = V_x[pixel[0], pixel[1]-N//2:pixel[1]+N//2, pixel[2]-N//2:pixel[2]+N//2]
+V_N_y = V_y[pixel[0], pixel[1]-N//2:pixel[1]+N//2, pixel[2]-N//2:pixel[2]+N//2]
+V_N_t = V_t[pixel[0], pixel[1]-N//2:pixel[1]+N//2, pixel[2]-N//2:pixel[2]+N//2]
+
+# io.imshow(V_N_x, cmap="gray")
+# plt.show()
+
+A = np.column_stack((np.ravel(V_N_x), np.ravel(V_N_y)))
+b = np.ravel(V_N_t)
+
+# Solving Av=b
+# ALTERNATIVE METHOD
+# # From Wikipedia https://en.wikipedia.org/wiki/Lucas%E2%80%93Kanade_method
+# v = np.linalg.inv((A.T@A))@A.T@b
+# # Alternative v = np.linalg.pinv((A.T@A))@A.T@b
+v, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+
+print(v)
+
+plt.imshow(V_x[0], cmap="gray")
+plt.quiver(pixel[1], pixel[2], v[0], v[1], color="blue", scale=0.02, scale_units='xy', angles='xy')
+
+plt.show()
+
+# -------------------------------------------------------------
+
+
+
+
+
+# --------------------------------------------------- PROBLEM 3.2 & 3.3
+
+# Cut out a piece of the first image in the collection
+
+
+def calculate_vector_fields(X, Vx, Vy, Vt, N, vmin, vmax, step=10):
+
+    vectors = np.zeros(X.shape + (2,))
+
+    for t in tqdm(range(X.shape[0])):
+        for y in range(0, X.shape[1], step):
+            for x in range(0, X.shape[2], step):
+                if t >= N and t <= X.shape[0]-N and y >= N and y <= X.shape[1]-N and x >= N and x <= X.shape[2]-N:
+                    V_x_patch = Vx[t, y - N // 2:y + N // 2+1, x - N // 2:x + N // 2+1]
+                    V_y_patch = Vy[t, y - N // 2:y + N // 2+1, x - N // 2:x + N // 2+1]
+                    V_t_patch = Vt[t, y - N // 2:y + N // 2+1, x - N // 2:x + N // 2+1]
+                    A = np.column_stack((np.ravel(V_x_patch), np.ravel(V_y_patch)))
+                    b = -np.ravel(V_t_patch)
+                    v, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+
+                    if vmin <= np.linalg.norm(v) <= vmax:
+                        vectors[t, y, x, :] = v
+                    else:
+                        vectors[t, y, x, :] = [0, 0]
+                else:
+                    vectors[t, y, x, :] = [0, 0]
+
+    return vectors
+
+
+def show_animation_with_vector_field(image_matrix, vectors, step, delay=10, title="", vector_scale=0.25, show_zero_vectors=False):
+    """We use the matplotlib.animation.FuncAnimation() function to
+    show a series of images given as a 3D Matrix  (where the first axis
+    represents time) as an animation. """
+
+    def update_frame(frame):
+        """Shows an image"""
+
+        image_slice = image_matrix[frame, :, :]
+        vector_field = vectors[frame, :, :, :]
+        magnitudes = np.linalg.norm(vectors[frame, :, :, :], axis=2)
+        if show_zero_vectors:
+            mask = magnitudes >= 0
+        else:
+            mask = magnitudes > np.mean(magnitudes)
+
+        # Prepare the data for plotting
+        y, x = np.mgrid[0:image_slice.shape[0], 0:image_slice.shape[1]]
+        dx = vector_field[:, :, 0]
+        dy = vector_field[:, :, 1]
+
+        x_masked = x[::step, ::step][mask[::step, ::step]]
+        y_masked = y[::step, ::step][mask[::step, ::step]]
+        dx_masked = dx[::step, ::step][mask[::step, ::step]]
+        dy_masked = dy[::step, ::step][mask[::step, ::step]]
+
+        ax.clear()
+        ax.imshow(image_slice, cmap='gray')  # Display the image
+        ax.quiver(x_masked, y_masked, dx_masked, dy_masked, color='r', scale=vector_scale, scale_units='xy', angles='xy')
+        ax.set_title(f'{title} - frame #{frame}')
+        ax.axis('off')
+
+    fig, ax = plt.subplots()
+    Animation = FuncAnimation(fig, update_frame, frames=image_matrix.shape[0], interval=delay)
+    plt.show()
+
+
+step = 8
+
+vectors = calculate_vector_fields(V, V_x_gaussian, V_y_gaussian, V_t_gaussian, N=3, vmin=3, vmax=6, step=step)
+
+show_animation_with_vector_field(V, vectors, step=step, show_zero_vectors=False)
+
+# -------------------------------------------------------------
+
+
